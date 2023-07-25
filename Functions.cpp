@@ -116,8 +116,14 @@ void getPreliminaryProjectInfo (nodeProject* projectToCreate, nodeProject* first
                     double value = convertStringToDouble(rowValue, inputObtained);
                 
                     if (inputObtained) {
-                        if (rowNum == 2) // user is setting economic life
-                            (projectToCreate->alternative).setYears(value);
+                        if (rowNum == 2) { // user is setting economic life
+                            if (int(value) == 0) {
+                                cout << "Project cannot have economic life of zero, please try again: ";
+                                inputObtained = false;
+                            }
+                            else
+                                (projectToCreate->alternative).setYears(value);
+                        }
                         else if (rowNum == 3) // user is setting first cost
                             (projectToCreate->alternative).setFirstCost(value);
                         else // user is setting depreciation rate
@@ -306,8 +312,9 @@ void createInconsistentCashFlowSeries (Alternative alternative, nodeCashFlow* &h
     }
 }
 
-double getDouble () {
+double getDouble() {
     string input;
+    double inputAsDouble;
     bool userDone = false;
     
     while (!userDone) {
@@ -317,37 +324,11 @@ double getDouble () {
         if (lineStream.fail())
             cout << "Error, please try again: ";
         else {
-            if (!validateInputAsDouble (input))
-                cout << "Invalid input, please try again: ";
-            else
-                userDone = true;
+            inputAsDouble = convertStringToDouble(input, userDone);
         }
     }
     
-    return convertStringToDouble(input, userDone); // userDone is used as a dummy variable here
-}
-
-bool validateInputAsDouble (string input) {
-    char* inputAsCString = new char[input.length() + 1]; 
-    strcpy(inputAsCString, input.c_str()); // convert input to a C string
-
-    bool inputValid = true;
-    bool decimalFound = false;
-    for (int i = 0; i < (int) input.length(); i ++) {
-        if ((inputAsCString[i] < 48 || inputAsCString[i] > 57) && inputAsCString[i] != '.')
-            inputValid = false;
-        if (inputAsCString[i] == '.') {
-            if (decimalFound == true)
-                inputValid = false;
-            else
-                decimalFound = true;
-        }
-    }
-    
-    if (decimalFound && input.length() == 1)
-        inputValid = false;
-    
-    return inputValid;
+    return inputAsDouble;
 }
 
 void verifyPreliminaryInfo (nodeProject* nodeBeingChecked, nodeProject* firstNode) {
@@ -389,6 +370,10 @@ void verifyPreliminaryInfo (nodeProject* nodeBeingChecked, nodeProject* firstNod
             else if (rowNum < 5) { // user wants to modify either economic life, first cost or depreciation rate
                 double value = getDouble();
                 if (rowNum == 2) {
+                    while (int(value) == 0) {
+                        cout << "Project cannot have economic life of zero, please try again: ";
+                        value = getDouble();
+                    }
                     (nodeBeingChecked->alternative).setYears(value);
                     
                     if ((nodeBeingChecked->alternative).getRevenueCashFlowType() == INCONSISTENT) {
@@ -864,8 +849,9 @@ void verifyListOfAlternatives (nodeProject* &head, bool &doNothingViable) {
                 else {
                     bool isInputInteger = true;
                     
+                    
                     for (int i = 0; i < (int) input.length(); i ++) // check if user's input is a number
-                        if (input[i] != '.' && (input[i] < 48 || input[i] > 57))
+                        if (input[i] < 48 || input[i] > 57)
                             isInputInteger = false;
                     if (!isInputInteger) // user has entered a non-numerical input
                         for (int i = 0; i < (int) input.length(); i ++)
@@ -1055,16 +1041,16 @@ void compareAlternatives (nodeProject* head, bool doNothingViable) {
     string columnThreeHeader;
     switch (methodOfAnalysis) {
         case PRESENT_WORTH:
-            columnThreeHeader = "Present Worth";
+            columnThreeHeader = "Present Worth ($)";
             break;
         case ANNUAL_WORTH:
-            columnThreeHeader = "Annual Worth";
+            columnThreeHeader = "Annual Worth ($)";
             break;
         case FUTURE_WORTH:
-            columnThreeHeader = "Future Worth";
+            columnThreeHeader = "Future Worth ($)";
             break;
         case INTERNAL_RATE_OF_RETURN:
-            columnThreeHeader = "Individual IRR";
+            columnThreeHeader = "Individual IRR (%)";
             break;
     }
     
@@ -1137,6 +1123,9 @@ int findLongestProjectLife (nodeProject* head) {
 }
 
 int findProjectLivesLCM (nodeProject* head) {
+    if (head == NULL)
+        return 0;
+        
     nodeProject* helper = head;
     int leastCommonMultipleSoFar = findLongestProjectLife(head);
     
@@ -1144,15 +1133,17 @@ int findProjectLivesLCM (nodeProject* head) {
     while (!leastCommonMultipleFound) {
         leastCommonMultipleFound = true;
         while (helper != NULL) {
-            if (leastCommonMultipleSoFar % (helper->alternative).getYears() != 0) {
-                leastCommonMultipleFound = false;
-                leastCommonMultipleSoFar += findLongestProjectLife(head);
-                break;
+            if ((helper->alternative).getYears() != 0) {
+                if (leastCommonMultipleSoFar % (helper->alternative).getYears() != 0) {
+                    leastCommonMultipleFound = false;
+                    leastCommonMultipleSoFar += findLongestProjectLife(head);
+                    break;
+                }
             }
             
             helper = helper->next;
         }
-        
+
         helper = head;
     }
     
@@ -1396,11 +1387,16 @@ void IIRRA (nodeProject* &head, double MARR, int planningPeriod, bool doNothingV
 }
 
 void calculateIRR (nodeProject* project, double MARR, int planningPeriod) {
+    if ((project->alternative).getRevenueCashFlowType() == NONEXISTANT && (project->alternative).getCostCashFlowType() == NONEXISTANT && (project->alternative).getFirstCost() == 0) {
+        (project->alternative).setNetValue(-1);
+        return;
+    }
+    
     int percentageMARR = int (MARR * 100);
     calculateNetValue(PRESENT_WORTH, project, planningPeriod, double(percentageMARR) / 100);
     
     int counter;
-    for (counter = 0; counter < 1000; counter ++) { // PercentageMARR will hold the greater value for subsequent linear interpolation at the end of this loop        
+    for (counter = 0; counter < 10000; counter ++) { // PercentageMARR will hold the greater value for subsequent linear interpolation at the end of this loop
         // first find whether we should be decreasing or increasing the cost of capital
         double oldNetValue = (project->alternative).getNetValue();
         if (percentageMARR + 1 != 0)
@@ -1435,10 +1431,10 @@ void calculateIRR (nodeProject* project, double MARR, int planningPeriod) {
         }
     }
     
-    if (counter < 1000)
+    if (counter < 10000)
         linearInterpolation (project, percentageMARR, percentageMARR - 1, planningPeriod);
-    else // algorithm failed to find IRR value that would give an NPV of zero (IRR must then be zero, indicating no return on this investment)
-        (project->alternative).setNetValue(0);
+    else // algorithm failed to find an IRR value that would give an NPV of zero
+        (project->alternative).setNetValue(-1);
 }
 
 void linearInterpolation (nodeProject* project, int largerCostOfCapital, int smallerCostOfCapital, int planningPeriod) {
@@ -1447,7 +1443,7 @@ void linearInterpolation (nodeProject* project, int largerCostOfCapital, int sma
     calculateNetValue(PRESENT_WORTH, project, planningPeriod, double(largerCostOfCapital) / 100);
     double secondNPV = (project->alternative).getNetValue();
     
-    (project->alternative).setNetValue((smallerCostOfCapital - (firstNPV / ((firstNPV - secondNPV) / (smallerCostOfCapital - largerCostOfCapital)))) / 100);
+    (project->alternative).setNetValue((smallerCostOfCapital - (firstNPV / ((firstNPV - secondNPV) / (smallerCostOfCapital - largerCostOfCapital)))));
 }
 
 void printAlternativesRanked (nodeProject* head, string columnThreeHeader, int doNothingRank) {
@@ -1496,6 +1492,7 @@ void printAlternativesRanked (nodeProject* head, string columnThreeHeader, int d
     
     // print rest of alternatives table
     helper = head;
+    bool provideNoteForAsterisk = false; // in the event that certain projects do not have a realistic IRR value
     int numAlternatives = 0; // total number of alternatives (including the 'do-nothing' approach)
     while (helper != NULL) {
         numAlternatives ++;
@@ -1511,7 +1508,7 @@ void printAlternativesRanked (nodeProject* head, string columnThreeHeader, int d
             printTableElement(true, strlen("Rank"), rank, 0, to_string(rank));
             cout << " ";
             
-            if (columnThreeHeader == "Individual IRR")
+            if (columnThreeHeader == "Individual IRR (%)")
                 printRowForDualColumnTable(maxSizeColTwo, maxSizeColThree, rank, rowNum, rowWithMaxSizeColTwo, rowWithMaxSizeColThree, false, "Do Nothing", "N/A"); // rowNum acts as a dummy variable
             else
                 printRowForDualColumnTable(maxSizeColTwo, maxSizeColThree, rank, rowNum, rowWithMaxSizeColTwo, rowWithMaxSizeColThree, false, "Do Nothing", "0"); // rowNum acts as a dummy variable
@@ -1520,7 +1517,12 @@ void printAlternativesRanked (nodeProject* head, string columnThreeHeader, int d
             cout << "| ";
             printTableElement(true, strlen("Rank"), rank, 0, to_string(rank));
             cout << " ";
-            printRowForDualColumnTable(maxSizeColTwo, maxSizeColThree, rank, rowNum, rowWithMaxSizeColTwo, rowWithMaxSizeColThree, false, (helper->alternative).getName(), to_string((helper->alternative).getNetValue())); // rowNum acts as a dummy variable
+            if (columnThreeHeader == "Individual IRR (%)" && (helper->alternative).getNetValue() < 0) { // project has no realistic IRR value
+                printRowForDualColumnTable(maxSizeColTwo, maxSizeColThree, rank, rowNum, rowWithMaxSizeColTwo, rowWithMaxSizeColThree, false, (helper->alternative).getName(), "*"); // rowNum acts as a dummy variable
+                provideNoteForAsterisk = true;
+            }
+            else
+                printRowForDualColumnTable(maxSizeColTwo, maxSizeColThree, rank, rowNum, rowWithMaxSizeColTwo, rowWithMaxSizeColThree, false, (helper->alternative).getName(), to_string((helper->alternative).getNetValue())); // rowNum acts as a dummy variable
         
             helper = helper->next;
         }
@@ -1528,5 +1530,9 @@ void printAlternativesRanked (nodeProject* head, string columnThreeHeader, int d
     
     for (int i = 0; i < maxSizeColTwo + maxSizeColThree + int(strlen("Rank")) + 10; i ++)
         cout << "-";
+    cout << endl;
+    
+    if (provideNoteForAsterisk)
+        cout << "Note: Projects whose individual IRR values are represented by an asterisk (*) do not have a realistic internal rate of return" << endl;
     cout << endl;
 }

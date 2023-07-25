@@ -246,6 +246,7 @@ void IIRRA (nodeProject* &head, double MARR, int planningPeriod, bool doNothingV
 // returns nothing
 // note that the function uses linear interpolation in the end to refine the project's IRR value
 // note that the function sets the alternative's NetValue to the resulting IRR (done through calling the linear interpolation function)
+// note that in the event that the function is unable to compute a realistic IRR value for a project, a value of -1 will be set for its NetValue member variable
 void calculateIRR (nodeProject* project, double MARR, int planningPeriod);
 
 // computes and sets the refined IRR value for a project node alternative using the two neighbouring cost of capital values via the linear interpolation method
