@@ -1,2 +1,3 @@
-# Investment Alternatives Comparator
- Program for ranking potential investment alternatives
+# Investment Alternatives Comparator (InAC)
+
+Program for ranking multiple investment alternatives based on four different methods of analysis
