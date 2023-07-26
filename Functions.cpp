@@ -1536,3 +1536,8 @@ void printAlternativesRanked (nodeProject* head, string columnThreeHeader, int d
         cout << "Note: Projects whose individual IRR values are represented by an asterisk (*) do not have a realistic internal rate of return" << endl;
     cout << endl;
 }
+
+void exitProgram() {
+    cout << "Program finished, hit enter to exit . . . ";
+    cin.ignore();
+}

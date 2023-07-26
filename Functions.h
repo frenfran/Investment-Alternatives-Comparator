@@ -261,3 +261,8 @@ void linearInterpolation (nodeProject* project, int largerCostOfCapital, int sma
 // note that the function does not perform any ranking of the alternatives
 // note that the function automatically knows whether the 'do-nothing' approach is a viable alternative or not based on its rank (the rank would be zero if the 'do-nothing' approach was not valid)
 void printAlternativesRanked (nodeProject* head, string columnThreeHeader, int doNothingRank);
+
+// waits for an input from user to close program
+// arguments: none
+// returns nothing
+void exitProgram ();

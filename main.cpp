@@ -47,4 +47,7 @@ int main () {
     
     // analysis of alternatives
     compareAlternatives (head, doNothingViable);
+    
+    // program finished
+    exitProgram();
 }
