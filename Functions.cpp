@@ -1019,6 +1019,9 @@ void compareAlternatives (nodeProject* head, bool doNothingViable) {
                 helper = helper->next;
                 counter ++;
             }
+            
+            if (head->next == NULL && (head->alternative).getNetValue() >= 0) // edge case
+                doNothingRank = 2;
         }
     }
     else { // user wants to use the internal rate of return method
